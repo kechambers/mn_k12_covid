@@ -108,10 +108,10 @@ ui <- fluidPage(column(
             width = 5,
             pickerInput(
                 inputId = "counties",
-                label = "Select one or more counties",
+                label = "Select a county",
                 choices = sort(unique(county_pop$county)),
-                selected = c("Nicollet", "Le Sueur"),
-                multiple = TRUE
+                selected = c("Nicollet")
+                # multiple = TRUE
             )
         ),
         column(
@@ -119,7 +119,7 @@ ui <- fluidPage(column(
             offset = 1,
             pickerInput(
                 inputId = "data",
-                label = "Choose data source",
+                label = "Choose a data source",
                 choices = c("NYTimes", "CSSE@JHU"),
                 selected = "NYTimes"
             )
@@ -146,10 +146,10 @@ ui <- fluidPage(column(
                 a(href="https://github.com/CSSEGISandData/COVID-19", "(https://github.com/CSSEGISandData/COVID-19)",
                   target="_blank"),
                    tags$br(),
-                   tags$br(),
-                   "Code available at",
+                   p(h6("Code available at",
                    a(href="https://github.com/kechambers/mn_k12_covid", "https://github.com/kechambers/mn_k12_covid",
                      target="_blank")
+                   ))
                 )
             )
         })
@@ -201,21 +201,6 @@ server <- function(input, output) {
             filter(wday(date) == 7)
     })
         
-    
-    # output$table <- renderTable({
-    #     
-    #     county_data_long$date <- format(county_data_long$date,'%Y-%m-%d')
-    #     
-    #     table_data <- 
-    #         county_data_long %>% 
-    #         filter(county == input$counties) %>% 
-    #         select(date,
-    #                "total_cases" = cases, new_cases, 
-    #                "14_day_sum" = moving_sum,
-    #                "14_by_10K" = case_by_pop_adj,
-    #                school_type) %>% 
-    #         tail(5)
-    # })
 
     output$policyTable <- renderDataTable({
         policies_styled
@@ -227,17 +212,17 @@ server <- function(input, output) {
             ggplot(county_selected(), aes(x = date, y = case_by_pop_adj, fill = school_type)) +
             geom_col(width = 0.5, alpha = 0.8, show.legend = FALSE) +
             geom_segment(data = . %>% filter(date == "2020-05-30"),
-                         aes(x = date, y = case_by_pop_adj + 10, xend = date, yend = case_by_pop_adj), color = "black", hjust = 1, vjust = 0.5) +
+                         aes(x = date, y = case_by_pop_adj + 9, xend = date, yend = case_by_pop_adj), color = "black", hjust = 1, vjust = 0.5) +
             geom_text(data = . %>% filter(date == "2020-05-30"), 
-                      aes(x = date, y = case_by_pop_adj + 10, label = "Saturday's\n14-day cases/10K"), 
+                      aes(x = date, y = case_by_pop_adj + 10, label = "Saturdays"), 
                       color = "black", size = 5, hjust = 0, vjust = 0.5) +
             geom_point(data = . %>% filter(wday(date) == 7),
                        aes(y = case_by_pop_adj, fill = school_type), 
-                       color = "black", size = 10, stroke = 1, shape = 21) +
+                       color = "black", size = 3, stroke = 0.5, shape = 21) +
             geom_text(data = . %>% 
-                          filter(wday(date) == 7),
-                      aes(y = case_by_pop_adj, label = round(case_by_pop_adj, 1)), 
-                      color = "black", size = 3.25, hjust = 0.5, vjust = 0.5, fontface = "bold") +
+                          filter(wday(date) == 7) %>% slice_tail(date, n = 5),
+                      aes(y = case_by_pop_adj + 2.5, label = round(case_by_pop_adj, 1)), 
+                      color = "black", size = 4.25, hjust = 0.5, vjust = 0.5) +
             
             expand_limits(y = c(0, 50)) +
             scale_x_date(labels = label_date_short(format = c("", "%b", "%d"),
