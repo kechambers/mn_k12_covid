@@ -15,6 +15,7 @@ library(scales)
 theme_set(theme_minimal())
 
 rolling_sum_14 <- rollify(sum, window = 14)
+start_date <- "2020-07-01"
 
 
 # Get county populations --------------------------------------------------
@@ -68,18 +69,28 @@ county_nyt_sum <-
 
 policies <- 
     tribble(
-        ~"Policy Option", ~"Range (14-day case rate per 10K people)",
+        ~"Mode", ~"14-day total/10K",
         #--|--
-        "in-person", "0 to less than 10",
-        "elementary in-person, secondary hybrid", "10 to less than 20",
-        "hybrid for all", "20 to less than 30",
-        "elementary hybrid, secondary distance", "30 to less than 50",
-        "distance for all", "50 or more" 
+        "in-person", "0-10",
+        "elementary in-person, secondary hybrid", "10-20",
+        "hybrid for all", "20-30",
+        "elementary hybrid, secondary distance", "30-50",
+        "distance for all", "50+" 
+    )
+
+policies_collapsed <- 
+    tribble(
+        ~"Mode of Instruction<br/>(14-day total/10K)",
+        "in-person (0 to 10)",
+        "elementary in-person, secondary hybrid (10 to 20)",
+        "hybrid for all (20 to 30)",
+        "elementary hybrid, secondary distance (30 to 50)",
+        "distance for all (50 or more)" 
     )
 
 policies_styled <- 
     datatable(policies, options = list(dom = 't', ordering = FALSE), rownames = FALSE) %>% 
-        formatStyle("Policy Option", 
+        formatStyle("Mode", 
                     backgroundColor = 
                         styleEqual(values = c("#EDD9A3", 
                                           "#F79C79", 
@@ -93,39 +104,57 @@ policies_styled <-
                                           "distance for all")
         ),
         fontWeight = 'bold'
+        ) %>% 
+        formatStyle("14-day total/10K", 
+                backgroundColor = 
+                    styleEqual(values = c("#EDD9A3", 
+                                          "#F79C79", 
+                                          "#F2637F", 
+                                          "#CA3C97", 
+                                          "#872CA2"),
+                               levels = c("0-10",
+                                          "10-20",
+                                          "20-30",
+                                          "30-50",
+                                          "50+")
+                    ),
+                fontWeight = 'bold'
         )
 
 
 # Define UI for application that draws a histogram
-ui <- fluidPage(column(
-    width = 10,
+ui <- fluidPage(
+    column(width = 12,
+    column(width = 2,
+           offset = 9,
+           style = "position:fixed; overflow:visible;",
+           fluidRow(p(h1("Thresholds"))),
+           fluidRow(dataTableOutput("policyTable")),
+           tags$br(),
+                pickerInput(
+                    inputId = "counties",
+                    label = "Select a county",
+                    choices = sort(unique(county_pop$county)),
+                    selected = c("Nicollet")
+                    # multiple = TRUE
+                ),
+                pickerInput(
+                    inputId = "data",
+                    label = "Choose a data source",
+                    choices = c("NYTimes", "CSSE@JHU"),
+                    selected = "NYTimes"
+                ),
+           tags$br(),
+           p(h6("Code available at",
+                a(href="https://github.com/kechambers/mn_k12_covid", "https://github.com/kechambers/mn_k12_covid",
+                  target="_blank")
+           ))
+            ),
+    
+    column(
+    width = 8,
     offset = 1,
-    fluidRow(p(h1("Determing a Safe Learning Model for MN"))),
-    fluidRow(dataTableOutput("policyTable")),
-    tags$br(),
-    fluidRow(
-        column(
-            width = 5,
-            pickerInput(
-                inputId = "counties",
-                label = "Select a county",
-                choices = sort(unique(county_pop$county)),
-                selected = c("Nicollet")
-                # multiple = TRUE
-            )
-        ),
-        column(
-            width = 3,
-            offset = 1,
-            pickerInput(
-                inputId = "data",
-                label = "Choose a data source",
-                choices = c("NYTimes", "CSSE@JHU"),
-                selected = "NYTimes"
-            )
-        )
-    ),
-    fluidRow(plotOutput("countyPlot")),
+    fluidRow(p(h1("MN Guidance on Mode of School Instruction"))),
     fluidRow(
         withTags({
             div(class="header", checked=NA,
@@ -134,42 +163,45 @@ ui <- fluidPage(column(
                 The state",
                    a(href="https://www.health.state.mn.us/diseases/coronavirus/stats/wschool.pdf", "publishes this number" , target="_blank"),
                    "once a week on Saturdays for the previous 14 days (e.g., 7/25/2020 includes cases between 7/12/2020 and 7/25/20). 
-                   The visualization above shows those official weekly numbers (circles) but also tracks
-                this number daily (bars). The number is calculated using",
+                   The visualization below shows those official weekly numbers (circles) but also tracks
+                this number daily (bars) for the county you select from the right sidebar. The number is calculated using",
                    a(href="https://mn.gov/admin/demography/data-by-topic/population-data/our-estimates/", 
                      "state county population estimates from 2019",
                      target="_blank"),
-                   "and joined with either data provided by the New York Times",
+                   "and joined with the data you choose from the right sidebar--either data provided by the New York Times",
                    a(href="https://github.com/nytimes/covid-19-data", "(https://github.com/nytimes/covid-19-data)",
                      target="_blank"),
-                "or by the Center for Systems Science and Engineering (CSSE) at Johns Hopkins University",
-                a(href="https://github.com/CSSEGISandData/COVID-19", "(https://github.com/CSSEGISandData/COVID-19)",
-                  target="_blank"),
-                   tags$br(),
-                   p(h6("Code available at",
-                   a(href="https://github.com/kechambers/mn_k12_covid", "https://github.com/kechambers/mn_k12_covid",
-                     target="_blank")
-                   ))
+                   "or by the Center for Systems Science and Engineering (CSSE) at Johns Hopkins University",
+                   a(href="https://github.com/CSSEGISandData/COVID-19", "(https://github.com/CSSEGISandData/COVID-19)",
+                     target="_blank"),
+                   tags$br()
                 )
             )
         })
+    ),
+    fluidRow(plotOutput("countyPlot")),
+    fluidRow(h5("The plot below shows all counties for the same time span in descending order 
+                of their most recent total number of cases in the past 14 days per 10,000 people.
+                The county selected in the right sidebar will be highlighted.")),
+    fluidRow(plotOutput("countyTimePlot", height = 800))
+    # fluidRow(plotOutput("countyCompPlot", height = 800))
     )
 ))
 
-# Define server logic required to draw a histogram
+# Define server logic
 server <- function(input, output) {
     
-    county_all <- reactive({
+    county_data <- reactive({
         switch(input$data,
                "NYTimes" = county_nyt_sum,
                "CSSE@JHU" = county_jhu_sum,
                )
     })
     
-    county_selected <- reactive({
-        county_all() %>% 
-            filter(county %in% input$counties) %>% 
-            group_by(date) %>%
+    county_all <- reactive({
+        county_data() %>%
+            filter(date >= start_date) %>% 
+            group_by(county, date) %>%
             summarise(cases = sum(cases),
                       combined_pop = sum(pop)) %>%
             mutate(new_cases = cases - lag(cases, 1)) %>% 
@@ -189,11 +221,16 @@ server <- function(input, output) {
                                                          "hybrid for all",
                                                          "elementary hybrid, secondary distance",
                                                          "distance for all"
-                                                         ),
-                                 ordered = TRUE
-                                 ) 
+            ),
+            ordered = TRUE
+            ) 
             ) %>% 
             filter(!is.na(school_type))
+    })
+    
+    county_selected <- reactive({
+        county_all() %>% 
+            filter(county %in% input$counties) 
     })
     
     county_decision_days <- reactive({
@@ -211,9 +248,9 @@ server <- function(input, output) {
         county <- 
             ggplot(county_selected(), aes(x = date, y = case_by_pop_adj, fill = school_type)) +
             geom_col(width = 0.5, alpha = 0.8, show.legend = FALSE) +
-            geom_segment(data = . %>% filter(date == "2020-05-30"),
+            geom_segment(data = . %>% filter(date == "2020-08-29"),
                          aes(x = date, y = case_by_pop_adj + 9, xend = date, yend = case_by_pop_adj), color = "black", hjust = 1, vjust = 0.5) +
-            geom_text(data = . %>% filter(date == "2020-05-30"), 
+            geom_text(data = . %>% filter(date == "2020-08-29"), 
                       aes(x = date, y = case_by_pop_adj + 10, label = "Saturdays"), 
                       color = "black", size = 5, hjust = 0, vjust = 0.5) +
             geom_point(data = . %>% filter(wday(date) == 7),
@@ -247,6 +284,69 @@ server <- function(input, output) {
         
         county
         
+    })
+    
+    county_last_day <- reactive({
+        county_all() %>% 
+            group_by(county) %>% 
+            slice_tail(1) %>% 
+            ungroup()
+    })
+    
+    output$countyCompPlot <- renderPlot({
+        
+        counties <- 
+            ggplot(county_last_day(), aes(x = fct_reorder(county, case_by_pop_adj), y = case_by_pop_adj, fill = school_type)) +
+            geom_col(width = 0.5, alpha = 0.5, show.legend = FALSE) +
+            geom_col(data = . %>% filter(county %in% input$counties), width = 0.5, alpha = 1, show.legend = FALSE) +
+            geom_point(data = . %>% filter(county %in% input$counties), shape = 23, size = 4, show.legend = FALSE) +
+            expand_limits(y = c(0, 50)) +
+            scale_fill_manual(values = c("#EDD9A3", "#F79C79", "#F2637F", "#CA3C97", "#872CA2"),
+                              drop = FALSE) +
+            theme(
+                panel.grid.major.y = element_blank(),
+                panel.grid.minor.y = element_blank(),
+                strip.text = element_text(size = 12, face = "bold", hjust = 0),
+                plot.title = element_text(size = 18, face = "bold"),
+                axis.text = element_text(size = 16),
+                axis.text.y = element_text(size = 12),
+                axis.ticks.x = element_line(color = "black"),
+                axis.line.x = element_line(color = "black"),
+                legend.title = element_blank(),
+                legend.position='none'
+            ) +
+            labs(title = NULL,
+                 caption = NULL,
+                 y = NULL,
+                 x = NULL) +
+            coord_flip()
+        
+        counties
+        
+    })
+    
+    output$countyTimePlot <- renderPlot({
+        ggplot(county_all(), aes(x = date, y = fct_reorder(county, case_by_pop_adj, .fun = last, .desc = FALSE), fill = school_type)) +
+            geom_tile(color="white",size = 0.2, show.legend = FALSE, alpha = 0.5) +
+            geom_hline(data = . %>% filter(county %in% input$counties), aes(yintercept = county)) + 
+            geom_tile(data = . %>% filter(county %in% input$counties), color="white",size = 0.2, show.legend = FALSE) +
+            scale_fill_manual(values = c("#EDD9A3", "#F79C79", "#F2637F", "#CA3C97", "#872CA2"), na.value = "grey90",
+                              drop = FALSE) +
+            theme(panel.grid.major.x = element_blank(),
+                  panel.grid.minor.x = element_blank(),
+                  strip.text = element_text(size = 12, face = "bold", hjust = 0),
+                  plot.title = element_text(size = 18, face = "bold"),
+                  axis.text = element_text(size = 16),
+                  axis.text.y = element_text(size = 10),
+                  axis.ticks.x = element_line(color = "black"),
+                  axis.line.x = element_line(color = "black"),
+                  legend.title = element_blank(),
+                  legend.position='none'
+            ) +
+            labs(title = NULL,
+                 caption = NULL,
+                 y = NULL,
+                 x = NULL)
     })
     
 }
