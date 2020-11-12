@@ -15,7 +15,7 @@ library(scales)
 theme_set(theme_minimal())
 
 rolling_sum_14 <- rollify(sum, window = 14)
-start_date <- "2020-07-01"
+start_date <- "2020-03-01"
 
 
 # Get county populations --------------------------------------------------
@@ -78,15 +78,15 @@ policies <-
         "distance for all", "50+" 
     )
 
-policies_collapsed <- 
-    tribble(
-        ~"Mode of Instruction<br/>(14-day total/10K)",
-        "in-person (0 to 10)",
-        "elementary in-person, secondary hybrid (10 to 20)",
-        "hybrid for all (20 to 30)",
-        "elementary hybrid, secondary distance (30 to 50)",
-        "distance for all (50 or more)" 
-    )
+# policies_collapsed <- 
+#     tribble(
+#         ~"Mode of Instruction<br/>(14-day total/10K)",
+#         "in-person (0 to 10)",
+#         "elementary in-person, secondary hybrid (10 to 20)",
+#         "hybrid for all (20 to 30)",
+#         "elementary hybrid, secondary distance (30 to 50)",
+#         "distance for all (50 or more)" 
+#     )
 
 policies_styled <- 
     datatable(policies, options = list(dom = 't', ordering = FALSE), rownames = FALSE) %>% 
@@ -127,7 +127,7 @@ ui <- fluidPage(
     column(width = 12,
     column(width = 2,
            offset = 9,
-           style = "position:fixed; overflow:visible;",
+           style = "position:fixed;",
            fluidRow(p(h1("Thresholds"))),
            fluidRow(dataTableOutput("policyTable")),
            tags$br(),
@@ -136,7 +136,6 @@ ui <- fluidPage(
                     label = "Select a county",
                     choices = sort(unique(county_pop$county)),
                     selected = c("Nicollet")
-                    # multiple = TRUE
                 ),
                 pickerInput(
                     inputId = "data",
@@ -180,6 +179,17 @@ ui <- fluidPage(
         })
     ),
     fluidRow(plotOutput("countyPlot")),
+    fluidRow(
+    sliderInput(
+        width = "100%", 
+        inputId = "dates",
+        label = "Change date range",
+        min = as.Date(start_date),
+        max = as.Date(today()),
+        value = c(as.Date(start_date), as.Date(today())),
+        timeFormat ="%b %d"
+    )
+    ),
     fluidRow(h5("The plot below shows all counties for the same time span in descending order 
                 of their most recent total number of cases in the past 14 days per 10,000 people.
                 The county selected in the right sidebar will be highlighted.")),
@@ -200,7 +210,6 @@ server <- function(input, output) {
     
     county_all <- reactive({
         county_data() %>%
-            filter(date >= start_date) %>% 
             group_by(county, date) %>%
             summarise(cases = sum(cases),
                       combined_pop = sum(pop)) %>%
@@ -225,12 +234,14 @@ server <- function(input, output) {
             ordered = TRUE
             ) 
             ) %>% 
+            ungroup() %>% 
             filter(!is.na(school_type))
     })
     
     county_selected <- reactive({
         county_all() %>% 
-            filter(county %in% input$counties) 
+            filter(county %in% input$counties) %>% 
+            filter(between(date, input$dates[1], input$dates[2]))
     })
     
     county_decision_days <- reactive({
@@ -248,9 +259,9 @@ server <- function(input, output) {
         county <- 
             ggplot(county_selected(), aes(x = date, y = case_by_pop_adj, fill = school_type)) +
             geom_col(width = 0.5, alpha = 0.8, show.legend = FALSE) +
-            geom_segment(data = . %>% filter(date == "2020-08-29"),
+            geom_segment(data = . %>% filter(wday(date) == 7) %>% slice(2),
                          aes(x = date, y = case_by_pop_adj + 9, xend = date, yend = case_by_pop_adj), color = "black", hjust = 1, vjust = 0.5) +
-            geom_text(data = . %>% filter(date == "2020-08-29"), 
+            geom_text(data = . %>% filter(wday(date) == 7) %>% slice(2), 
                       aes(x = date, y = case_by_pop_adj + 10, label = "Saturdays"), 
                       color = "black", size = 5, hjust = 0, vjust = 0.5) +
             geom_point(data = . %>% filter(wday(date) == 7),
@@ -325,8 +336,13 @@ server <- function(input, output) {
         
     })
     
+    county_time <- reactive({
+        county_all() %>% 
+            filter(between(date, input$dates[1], input$dates[2]))
+    })
+    
     output$countyTimePlot <- renderPlot({
-        ggplot(county_all(), aes(x = date, y = fct_reorder(county, case_by_pop_adj, .fun = last, .desc = FALSE), fill = school_type)) +
+        ggplot(county_time(), aes(x = date, y = fct_reorder(county, case_by_pop_adj, .fun = last, .desc = FALSE), fill = school_type)) +
             geom_tile(color="white",size = 0.2, show.legend = FALSE, alpha = 0.5) +
             geom_hline(data = . %>% filter(county %in% input$counties), aes(yintercept = county)) + 
             geom_tile(data = . %>% filter(county %in% input$counties), color="white",size = 0.2, show.legend = FALSE) +
