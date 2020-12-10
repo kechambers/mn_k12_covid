@@ -12,12 +12,15 @@ library(readxl)
 library(tibbletime)
 library(scales)
 library(viridis)
+library(RColorBrewer)
 library(maps)
 library(mapproj)
 
 rolling_sum_14 <- rollify(sum, window = 14)
 
 start_date <- "2020-03-01"
+
+county_fill <- colorRampPalette(rev(brewer.pal(11, "Spectral"))) 
 
 theme_set(theme_minimal())
 
@@ -100,11 +103,23 @@ county_all <-
     ungroup() %>% 
     filter(!is.na(school_type))
 
+county_all_cumulative <- 
+  county_nyt_add_pop %>%
+  group_by(county) %>%
+  slice_tail(n = 1) %>% 
+  mutate(case_by_pop_adj_sum = cases/(pop/10000))
+
 
 # Join cases with location for mapping ------------------------------------
 
 cases_state_map <- county_all %>% 
   left_join(us_counties, by = c("county" = "subregion"))
+
+cases_state_total <- county_all_cumulative %>% 
+  left_join(us_counties, by = c("county" = "subregion"))
+
+case_max <- max(cases_state_map$case_by_pop_adj)
+case_total_max <- max(cases_state_total$case_by_pop_adj_sum)
 
 # Get MDH cases by zipcode ------------------------------------------------
 
@@ -258,7 +273,8 @@ ui <- fluidPage(
                 The county selected in the right sidebar will be highlighted.")),
     fluidRow(plotOutput("countyTimePlot", height = 800)),
     fluidRow(plotOutput("zipcodePlot")),
-    fluidRow(plotOutput("stateMapPlot", height = 800))
+    fluidRow(plotOutput("stateMapPlot", height = 800)),
+    fluidRow(plotOutput("stateCumulativePlot", height = 800))
     # fluidRow(plotOutput("countyCompPlot", height = 800))
     )
 ))
@@ -407,7 +423,6 @@ server <- function(input, output) {
       cases_state_map %>%
         filter(date == input$dates[2])
     })
-    
 
     output$stateMapPlot <- renderPlot({
       
@@ -415,7 +430,8 @@ server <- function(input, output) {
         ggplot(cases_state_map_date(), aes(x = long, y = lat, fill = case_by_pop_adj)) +
         geom_polygon(aes(group = group), color = "gray90", size = 0.1) +
         coord_map(projection = "albers", lat0 = 39, lat1 = 45) +
-        scale_fill_viridis_c() +
+        scale_fill_gradientn(colours = county_fill(100), limits = c(0,case_max)) +
+        # scale_fill_viridis_c(limits = c(0,case_max)) +
         theme_map() +
         labs(title = str_wrap("The total number of cases per 10K people in the two weeks prior to the date selected", 70),
              fill = "")
@@ -423,6 +439,20 @@ server <- function(input, output) {
       county_map
     })
     
+    
+    output$stateCumulativePlot <- renderPlot({
+      
+      county_map <- 
+        ggplot(cases_state_total, aes(x = long, y = lat, fill = case_by_pop_adj_sum)) +
+        geom_polygon(aes(group = group), color = "gray90", size = 0.1) +
+        coord_map(projection = "albers", lat0 = 39, lat1 = 45) +
+        scale_fill_gradientn(colours = county_fill(100), limits = c(0,case_total_max)) +
+        theme_map() +
+        labs(title = str_wrap("The total number of cases per 10K people since March 1st, 2020", 70),
+             fill = "")
+      
+      county_map
+    })
 
 # County comparison by last measurement -----------------------------------
     
