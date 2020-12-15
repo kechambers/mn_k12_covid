@@ -33,6 +33,7 @@ theme_map <- function(base_size=12, base_family="") {
           axis.text=element_blank(),
           axis.ticks=element_blank(),
           axis.title=element_blank(),
+          legend.text = element_text(size = 12),
           panel.background=element_blank(),
           panel.border=element_blank(),
           panel.grid=element_blank(),
@@ -107,8 +108,14 @@ county_all_cumulative <-
   county_nyt_add_pop %>%
   group_by(county) %>%
   slice_tail(n = 1) %>% 
-  mutate(case_by_pop_adj_sum = cases/(pop/10000))
+  mutate(case_by_pop_adj_sum = cases/(pop/10000)) %>% 
+  ungroup()
 
+last_updated <-
+  county_all_cumulative %>%
+  arrange(date) %>%
+  slice(1) %>% 
+  pull(date)
 
 # Join cases with location for mapping ------------------------------------
 
@@ -210,74 +217,111 @@ policies_styled <-
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
-    column(width = 12,
-    column(width = 2,
-           offset = 9,
-           style = "position:fixed;",
-           fluidRow(p(h1("Thresholds"))),
-           fluidRow(dataTableOutput("policyTable")),
-           tags$br(),
-                pickerInput(
-                    inputId = "counties",
-                    label = "Select a county",
-                    choices = sort(unique(county_pop$county)),
-                    selected = c("Nicollet")
-                ),
-           uiOutput("zipSelection"),
-           tags$br(),
-           p(h6("Code available at",
-                a(href="https://github.com/kechambers/mn_k12_covid", "https://github.com/kechambers/mn_k12_covid",
-                  target="_blank")
-           ))
-            ),
-    
+  style = "padding-top: 100px;",
+  
     column(
-    width = 8,
-    offset = 1,
-    fluidRow(p(h1("MN Guidance on Mode of School Instruction"))),
-    fluidRow(
-        withTags({
-            div(class="header", checked=NA,
-                h5("MN recommends that schools make decisions about their safe learning model based on 
-                the number of cases by county of residence in Minnesota over 14 days, per 10,000 people. 
+      width = 10,
+      offset = 1,
+      p(h1("MN Guidance on Mode of School Instruction")),
+      withTags({
+        div(
+          class = "header",
+          checked = NA,
+          h5(
+            "MN recommends that schools make decisions about their safe learning model based on
+                the number of cases by county of residence in Minnesota over 14 days, per 10,000 people.
                 The state",
-                   a(href="https://www.health.state.mn.us/diseases/coronavirus/stats/wschool.pdf", "publishes this number" , target="_blank"),
-                   "once a week on Saturdays for the previous 14 days (e.g., 7/25/2020 includes cases between 7/12/2020 and 7/25/20). 
+            a(href = "https://www.health.state.mn.us/diseases/coronavirus/stats/wschool.pdf", "publishes this number" , target =
+                "_blank"),
+            "once a week on Saturdays for the previous 14 days (e.g., 7/25/2020 includes cases between 7/12/2020 and 7/25/20).
                    The visualization below shows those official weekly numbers (circles) but also tracks
                 this number daily (bars) for the county you select from the right sidebar. The number is calculated using",
-                   a(href="https://mn.gov/admin/demography/data-by-topic/population-data/our-estimates/", 
-                     "state county population estimates from 2019",
-                     target="_blank"),
-                   "and joined with the data provided by the New York Times",
-                   a(href="https://github.com/nytimes/covid-19-data", "(https://github.com/nytimes/covid-19-data)",
-                     target="_blank"),
-                   tags$br()
-                )
-            )
-        })
+            a(
+              href = "https://mn.gov/admin/demography/data-by-topic/population-data/our-estimates/",
+              "state county population estimates from 2019",
+              target = "_blank"
+            ),
+            "and joined with the data provided by the New York Times",
+            a(
+              href = "https://github.com/nytimes/covid-19-data",
+              "(https://github.com/nytimes/covid-19-data)",
+              target = "_blank"
+            ),
+            tags$br(),
+            p(h6(
+              "Code available at",
+              a(
+                href = "https://github.com/kechambers/mn_k12_covid",
+                "https://github.com/kechambers/mn_k12_covid",
+                target = "_blank"
+              )
+            )),
+            h6(tags$em(paste0("Data updated ", as.Date(last_updated))), align = "right")
+          )
+        )
+      }),
+      plotOutput("countyPlot"),
+      dataTableOutput("policyTable"),
+      tags$br(),
+      h5(
+        "How does your selected county compare to all counties in the state? 
+        Counties are sorted in descending order based on their most recent total number of cases in the past 14 days per 10,000 people.
+        The selected county will be highlighted."
+      ),
+      plotOutput("countyTimePlot", height = 700),
+      tags$br(),
+      h5("Where are the counties with the highest scores located? The total number of cases in the past 14 days per 10,000 people
+         calculated from the most recent date selected is shown for each county."),
+      plotOutput("stateMapPlot", height = 600),
+      tags$hr(),
+      tags$br(),
+      h5("Where are the counties with the highest number of cumulative cases?
+         The total number of cases per 10,000 people from 2020-03-01 to", last_updated),
+      plotOutput("stateCumulativePlot", height = 600),
+      tags$hr(),
+      tags$br(),
+      h5("Within the selected county, what proportion of all cases can be attributed to each zipcode?"),
+      plotOutput("zipcodePlot"),
+      uiOutput("zipSelection"),
+      tags$br()
+      # fluidRow(plotOutput("countyCompPlot", height = 800))
     ),
-    fluidRow(plotOutput("countyPlot")),
-    fluidRow(
-    sliderInput(
-        width = "100%", 
-        inputId = "dates",
-        label = "Change date range",
-        min = as.Date(start_date),
-        max = as.Date(today() - days(1)),
-        value = c(as.Date("2020-08-01", "%Y-%m-%d"), as.Date(today() - days(1))),
-        timeFormat ="%b %d"
-    )
+  absolutePanel(
+    top = 0,
+    left = 0,
+    right = 0,
+    fixed = TRUE,
+    style = "padding: 1px; background: #ffffff;",
+    style = "opacity: 0.95",
+    draggable = TRUE,
+    column(
+      width = 10,
+      offset = 1,
+      tags$br(),
+      column(
+        width = 3,
+        pickerInput(
+          inputId = "counties",
+          label = "Select a county",
+          choices = sort(unique(county_pop$county)),
+          selected = c("Nicollet")
+        )
+      ),
+      column(
+        width = 9,
+        sliderInput(
+          width = "100%",
+          inputId = "dates",
+          label = "Change date range",
+          min = as.Date(start_date),
+          max = as.Date(today() - days(1)),
+          value = c(as.Date("2020-08-01", "%Y-%m-%d"), as.Date(today() - days(1))),
+          timeFormat = "%b %d"
+        )
+      ),
     ),
-    fluidRow(h5("The plot below shows all counties for the same time span in descending order 
-                of their most recent total number of cases in the past 14 days per 10,000 people.
-                The county selected in the right sidebar will be highlighted.")),
-    fluidRow(plotOutput("countyTimePlot", height = 800)),
-    fluidRow(plotOutput("zipcodePlot")),
-    fluidRow(plotOutput("stateMapPlot", height = 800)),
-    fluidRow(plotOutput("stateCumulativePlot", height = 800))
-    # fluidRow(plotOutput("countyCompPlot", height = 800))
-    )
-))
+  )
+  )
 
 # Define server logic
 server <- function(input, output) {
@@ -322,7 +366,19 @@ server <- function(input, output) {
     output$zipcodePlot <- renderPlot({
         ggplot(zip_comp_data(), aes(x = date, y = percentage, fill = zipcode)) +
             geom_area(alpha = 0.6 , size = .5, color = "white") +
-            scale_fill_viridis(discrete = T)
+            scale_fill_viridis(discrete = T) +
+        theme(
+              axis.text = element_text(size = 16),
+              axis.ticks.x = element_line(color = "black"),
+              axis.line.x = element_line(color = "black"),
+              legend.title = element_blank(),
+              legend.text = element_text(size = 14),
+        ) +
+        labs(title = NULL,
+             caption = NULL,
+             y = NULL,
+             x = NULL)
+        
     })
     
 
@@ -433,8 +489,8 @@ server <- function(input, output) {
         scale_fill_gradientn(colours = county_fill(100), limits = c(0,case_max)) +
         # scale_fill_viridis_c(limits = c(0,case_max)) +
         theme_map() +
-        labs(title = str_wrap("The total number of cases per 10K people in the two weeks prior to the date selected", 70),
-             fill = "")
+        labs(title = NULL,
+             fill = NULL)
       
       county_map
     })
@@ -448,8 +504,8 @@ server <- function(input, output) {
         coord_map(projection = "albers", lat0 = 39, lat1 = 45) +
         scale_fill_gradientn(colours = county_fill(100), limits = c(0,case_total_max)) +
         theme_map() +
-        labs(title = str_wrap("The total number of cases per 10K people since March 1st, 2020", 70),
-             fill = "")
+        labs(title = NULL,
+             fill = NULL)
       
       county_map
     })
