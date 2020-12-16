@@ -270,11 +270,21 @@ ui <- fluidPage(
         Counties are sorted in descending order based on their most recent total number of cases in the past 14 days per 10,000 people.
         The selected county will be highlighted."
       ),
-      plotOutput("countyTimePlot", height = 700),
-      plotOutput("countyTimeCasePlot", height = 700),
+      plotOutput("countyTimePlot", height = 750),
+      tags$hr(),
+      tags$br(),
+      h5(
+        "When did each county peak?
+        For the dates selected, this plot identifies a county's highest population adjusted 14-day case total (opaque squares with black borders)
+        and shows what percentage of that max other days reached.
+        The date of each county's peak is given at the far right.
+        The selected county will be highlighted."
+      ),
+      plotOutput("countyTimeCasePlot", height = 750),
+      tags$hr(),
       tags$br(),
       h5("Where are the counties with the highest scores located? The total number of cases in the past 14 days per 10,000 people
-         calculated from the most recent date selected is shown for each county."),
+         from the most recent date selected is shown for each county."),
       plotOutput("stateMapPlot", height = 600),
       tags$hr(),
       tags$br(),
@@ -497,7 +507,7 @@ server <- function(input, output) {
         geom_tile(data = . %>% filter(county %in% input$counties), color="white",size = 0.2, show.legend = FALSE) +
         geom_tile(data = . %>% group_by(county) %>% slice_max(case_by_pop_adj), color = "black", size = 0.2, alpha = 1) +
         geom_text(data = . %>% group_by(county) %>% slice_max(case_by_pop_adj, n = 1, with_ties = FALSE), aes(label = format(date, format = "%b %d")), x = Inf + 8, size = 3, hjust = 1) +
-        scale_fill_gradientn(colours = county_fill(100), labels = scales::percent_format(accuracy = 1)) +
+        scale_fill_gradientn(colours = county_fill(100), labels = scales::percent_format(accuracy = 1), limits = c(0,1), breaks = seq(0, 1, by = 0.1)) +
         theme(panel.grid.major.x = element_blank(),
               panel.grid.minor.x = element_blank(),
               strip.text = element_text(size = 12, face = "bold", hjust = 0),
@@ -506,7 +516,10 @@ server <- function(input, output) {
               axis.text.y = element_text(size = 10),
               axis.ticks.x = element_line(color = "black"),
               axis.line.x = element_line(color = "black"),
-              legend.title = element_blank()
+              legend.title = element_blank(),
+              legend.position = "top",
+              legend.text = element_text(size = 12),
+              legend.key.width = unit(5, "cm")
         ) +
         labs(title = NULL,
              caption = NULL,
