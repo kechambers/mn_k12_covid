@@ -67,6 +67,7 @@ county_pop <-
 county_cases_nyt <- 
     read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv") %>% 
     filter(state == "Minnesota") %>% 
+    filter(county != "Unknown") %>% 
     complete(state, date, fill = list(cases = 0, deaths = 0)) %>% 
     ungroup() 
 
@@ -83,7 +84,7 @@ county_all <-
     mutate(new_cases = cases - lag(cases, 1)) %>% 
     mutate(moving_sum = rolling_sum_14(new_cases)) %>% 
     mutate(pop_adj = combined_pop/10000) %>% 
-    mutate(case_by_pop_adj = moving_sum/pop_adj) %>% 
+    mutate(case_by_pop_adj = moving_sum/pop_adj) %>%
     mutate(school_type = case_when(
       case_by_pop_adj <= 9.99 ~ "in-person",
       between(case_by_pop_adj, 10, 19.99)  ~ "elementary in-person, secondary hybrid",
@@ -103,6 +104,7 @@ county_all <-
     ) %>% 
     ungroup() %>% 
     filter(!is.na(school_type))
+
 
 county_all_cumulative <- 
   county_nyt_add_pop %>%
@@ -269,6 +271,7 @@ ui <- fluidPage(
         The selected county will be highlighted."
       ),
       plotOutput("countyTimePlot", height = 700),
+      plotOutput("countyTimeCasePlot", height = 700),
       tags$br(),
       h5("Where are the counties with the highest scores located? The total number of cases in the past 14 days per 10,000 people
          calculated from the most recent date selected is shown for each county."),
@@ -439,7 +442,7 @@ server <- function(input, output) {
     })
     
 
-# County timecourse comparison plot ---------------------------------------
+# County timecourse decision comparison plot ---------------------------------------
 
     
     county_time <- reactive({
@@ -470,6 +473,46 @@ server <- function(input, output) {
                  y = NULL,
                  x = NULL)
     })
+    
+
+# County timecourse plot for cases ----------------------------------------
+
+   
+    county_time_prop <- reactive({
+      county_all %>% 
+        mutate(case_by_pop_adj = if_else(case_by_pop_adj <= 0, NA_real_, case_by_pop_adj)) %>%
+        filter(between(date, input$dates[1], input$dates[2])) %>% 
+        group_by(county) %>% 
+        mutate(cases_max = max(case_by_pop_adj, na.rm = TRUE)) %>% 
+        mutate(cases_prop = case_by_pop_adj/cases_max) %>% 
+        mutate(peak_date = date[which.max(case_by_pop_adj)]) %>% 
+        ungroup()
+    })
+    
+    
+    output$countyTimeCasePlot <- renderPlot({
+      ggplot(county_time_prop(), aes(x = date, y = fct_reorder(county, peak_date, .desc = FALSE), fill = cases_prop)) +
+        geom_tile(color = "white", size = 0.2, alpha = 0.5) +
+        # geom_hline(data = . %>% filter(county %in% input$counties), aes(yintercept = county)) + 
+        geom_tile(data = . %>% filter(county %in% input$counties), color="white",size = 0.2, show.legend = FALSE) +
+        geom_tile(data = . %>% group_by(county) %>% slice_max(case_by_pop_adj), color = "black", size = 0.2, alpha = 1) +
+        geom_text(data = . %>% group_by(county) %>% slice_max(case_by_pop_adj, n = 1, with_ties = FALSE), aes(label = format(date, format = "%b %d")), x = Inf + 8, size = 3, hjust = 1) +
+        scale_fill_gradientn(colours = county_fill(100), labels = scales::percent_format(accuracy = 1)) +
+        theme(panel.grid.major.x = element_blank(),
+              panel.grid.minor.x = element_blank(),
+              strip.text = element_text(size = 12, face = "bold", hjust = 0),
+              plot.title = element_text(size = 18, face = "bold"),
+              axis.text = element_text(size = 16),
+              axis.text.y = element_text(size = 10),
+              axis.ticks.x = element_line(color = "black"),
+              axis.line.x = element_line(color = "black"),
+              legend.title = element_blank()
+        ) +
+        labs(title = NULL,
+             caption = NULL,
+             y = NULL,
+             x = NULL)
+    })  
     
 
 # State map of cases by county --------------------------------------------
