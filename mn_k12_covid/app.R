@@ -138,11 +138,12 @@ cases_zip_existing <-
     mutate(zipcode = as.character(zipcode))
 
 # Used to add new MDH weekly on Thursdays
+
 # cases_zip_new <-
-#     read_csv(here::here("data","wmapcz50.csv")) %>%
+#     read_csv(here::here("data","wmapcz51.csv")) %>%
 #     clean_names() %>%
 #     select(zipcode = zip, cases) %>%
-#     mutate(date = "12/10/2020")
+#     mutate(date = "12/17/2020")
 # 
 # cases_zip <-
 #     bind_rows(cases_zip_existing, cases_zip_new)
