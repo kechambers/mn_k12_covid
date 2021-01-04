@@ -140,10 +140,10 @@ cases_zip_existing <-
 # Used to add new MDH weekly on Thursdays
 
 # cases_zip_new <-
-#     read_csv(here::here("data","wmapcz51.csv")) %>%
+#     read_csv(here::here("data","wmapcz53.csv")) %>%
 #     clean_names() %>%
 #     select(zipcode = zip, cases) %>%
-#     mutate(date = "12/17/2020")
+#     mutate(date = "12/31/2020")
 # 
 # cases_zip <-
 #     bind_rows(cases_zip_existing, cases_zip_new)
@@ -279,7 +279,8 @@ ui <- fluidPage(
         For the dates selected, this plot identifies a county's highest population adjusted 14-day case total (opaque squares with black borders)
         and shows what percentage of that max other days reached.
         The date of each county's peak is given at the far right.
-        The selected county will be highlighted."
+        The selected county will be highlighted.
+        Counties are sorted in descending order based on most recent peak percentage."
       ),
       plotOutput("countyTimeCasePlot", height = 750),
       tags$hr(),
@@ -410,6 +411,13 @@ server <- function(input, output) {
         filter(wday(date) == 7)
     })
     
+    most_recent_number <- reactive({
+      county_selected() %>% 
+        arrange(date) %>% 
+        slice_tail(n = 1) %>% 
+        pull(case_by_pop_adj)
+    })
+    
     output$countyPlot <- renderPlot({
         
         county <- 
@@ -444,7 +452,7 @@ server <- function(input, output) {
                 legend.position = 'none'
             ) +
             labs(title = NULL,
-                 caption = NULL,
+                 caption = paste0("Number for ", last_updated, ": ", (round(most_recent_number(), 1))),
                  y = NULL,
                  x = NULL)
         
@@ -500,9 +508,20 @@ server <- function(input, output) {
         ungroup()
     })
     
+    selected_county <- reactive({
+      input$counties
+    })
+    
+    most_recent_prop <- reactive({
+      county_time_prop() %>%
+        filter(county %in% input$counties) %>% 
+        arrange(date) %>% 
+        slice_tail(n = 1) %>% 
+        pull(cases_prop)
+    })
     
     output$countyTimeCasePlot <- renderPlot({
-      ggplot(county_time_prop(), aes(x = date, y = fct_reorder(county, peak_date, .desc = FALSE), fill = cases_prop)) +
+      ggplot(county_time_prop(), aes(x = date, y = fct_reorder(county, cases_prop, .fun = last, .desc = FALSE), fill = cases_prop)) +
         geom_tile(color = "white", size = 0.2, alpha = 0.5) +
         # geom_hline(data = . %>% filter(county %in% input$counties), aes(yintercept = county)) + 
         geom_tile(data = . %>% filter(county %in% input$counties), color="white",size = 0.2, show.legend = FALSE) +
@@ -523,7 +542,7 @@ server <- function(input, output) {
               legend.key.width = unit(5, "cm")
         ) +
         labs(title = NULL,
-             caption = NULL,
+             caption = paste0("Proportion of peak for ", selected_county(), " as of ", last_updated, ": ", scales::percent(round(most_recent_prop(), 2))),
              y = NULL,
              x = NULL)
     })  
