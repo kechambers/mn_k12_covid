@@ -542,7 +542,7 @@ server <- function(input, output) {
               legend.key.width = unit(5, "cm")
         ) +
         labs(title = NULL,
-             caption = paste0("Proportion of peak for ", selected_county(), " as of ", last_updated, ": ", scales::percent(round(most_recent_prop(), 2))),
+             caption = paste0("Peak percentage for ", selected_county(), " as of ", last_updated, ": ", scales::percent(round(most_recent_prop(), 2))),
              y = NULL,
              x = NULL)
     })  
