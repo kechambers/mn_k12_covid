@@ -139,16 +139,16 @@ cases_zip_existing <-
 
 # Used to add new MDH weekly on Thursdays
 
-cases_zip_new <-
-    read_csv(here::here("data","wmapcz09.csv")) %>%
-    clean_names() %>%
-    select(zipcode = zip, cases) %>%
-    mutate(date = "02/11/2021")
-
-cases_zip <-
-    bind_rows(cases_zip_existing, cases_zip_new)
-
-write_csv(cases_zip, here::here("data", "cases_zip.csv"))
+# cases_zip_new <-
+#     read_csv(here::here("data","wmapcz09.csv")) %>%
+#     clean_names() %>%
+#     select(zipcode = zip, cases) %>%
+#     mutate(date = "03/04/2021")
+# 
+# cases_zip <-
+#     bind_rows(cases_zip_existing, cases_zip_new)
+# 
+# write_csv(cases_zip, here::here("data", "cases_zip.csv"))
 
 
 # Get zipcode for counties -------------------------------------------------
@@ -166,7 +166,7 @@ county_zips <-
 cases_zip_county <- 
     left_join(cases_zip_existing, county_zips, by = c("zipcode" = "zip")) %>% 
     mutate(county = str_remove(county, " County")) %>% 
-    mutate(date = parse_date(date, "%m/%d/%Y")) %>% 
+    mutate(date = mdy(date)) %>% 
     filter(cases != "<=5") %>% 
     mutate(cases = as.numeric(cases)) %>% 
     distinct()
