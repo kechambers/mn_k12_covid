@@ -294,11 +294,11 @@ ui <- fluidPage(
          The total number of cases per 10,000 people from 2020-03-01 to", last_updated),
       plotOutput("stateCumulativePlot", height = 600),
       tags$hr(),
-      tags$br(),
-      h5("Within the selected county, what proportion of all cases can be attributed to each zipcode?"),
-      plotOutput("zipcodePlot"),
-      uiOutput("zipSelection"),
       tags$br()
+      # h5("Within the selected county, what proportion of all cases can be attributed to each zipcode?"),
+      # plotOutput("zipcodePlot"),
+      # uiOutput("zipSelection"),
+      # tags$br()
       # fluidRow(plotOutput("countyCompPlot", height = 800))
     ),
   absolutePanel(
