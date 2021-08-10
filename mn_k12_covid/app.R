@@ -274,6 +274,11 @@ ui <- fluidPage(
       plotOutput("countyTimePlot", height = 750),
       tags$hr(),
       tags$br(),
+      h5("Where are the counties with the highest scores located? The total number of cases in the past 14 days per 10,000 people
+         from the most recent date selected is shown for each county."),
+      plotOutput("stateMapPlot", height = 600),
+      tags$hr(),
+      tags$br(),
       h5(
         "When did each county peak?
         For the dates selected, this plot identifies a county's highest population adjusted 14-day case total (opaque squares with black borders)
@@ -283,11 +288,6 @@ ui <- fluidPage(
         Counties are sorted in descending order based on most recent peak percentage."
       ),
       plotOutput("countyTimeCasePlot", height = 750),
-      tags$hr(),
-      tags$br(),
-      h5("Where are the counties with the highest scores located? The total number of cases in the past 14 days per 10,000 people
-         from the most recent date selected is shown for each county."),
-      plotOutput("stateMapPlot", height = 600),
       tags$hr(),
       tags$br(),
       h5("Where are the counties with the highest number of cumulative cases?
@@ -559,11 +559,12 @@ server <- function(input, output) {
     output$stateMapPlot <- renderPlot({
       
       county_map <- 
-        ggplot(cases_state_map_date(), aes(x = long, y = lat, fill = case_by_pop_adj)) +
+        ggplot(cases_state_map_date(), aes(x = long, y = lat, fill = school_type)) +
         geom_polygon(aes(group = group), color = "gray90", size = 0.1) +
         coord_map(projection = "albers", lat0 = 39, lat1 = 45) +
-        scale_fill_gradientn(colours = county_fill(100), limits = c(0,case_max)) +
-        # scale_fill_viridis_c(limits = c(0,case_max)) +
+        # scale_fill_gradientn(colours = county_fill(100), limits = c(0,max(cases_state_map_date()$case_by_pop_adj))) +
+        scale_fill_manual(values = c("#EDD9A3", "#F79C79", "#F2637F", "#CA3C97", "#872CA2"),
+                          drop = FALSE) +
         theme_map() +
         labs(title = NULL,
              fill = NULL)
