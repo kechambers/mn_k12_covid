@@ -64,8 +64,16 @@ county_pop <-
 
 # Get cases by county from nyt --------------------------------------------
 
+county_20 <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties-2020.csv")
+county_21 <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties-2021.csv")
+county_22 <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties-2022.csv")
+county_all <- 
+  county_20 |> 
+  bind_rows(county_21) |> 
+  bind_rows(county_22)
+
 county_cases_nyt <- 
-    read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv") %>% 
+    county_all %>% 
     filter(state == "Minnesota") %>% 
     filter(county != "Unknown") %>% 
     complete(state, date, fill = list(cases = 0, deaths = 0)) %>% 
