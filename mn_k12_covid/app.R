@@ -67,10 +67,10 @@ county_pop <-
 county_20 <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties-2020.csv")
 county_21 <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties-2021.csv")
 county_22 <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties-2022.csv")
+county_23 <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties-2023.csv")
+
 county_all <- 
-  county_20 |> 
-  bind_rows(county_21) |> 
-  bind_rows(county_22)
+  bind_rows(county_20, county_21, county_22, county_23)
 
 county_cases_nyt <- 
     county_all %>% 
@@ -140,10 +140,10 @@ case_total_max <- max(cases_state_total$case_by_pop_adj_sum)
 
 # Get MDH cases by zipcode ------------------------------------------------
 
-cases_zip_existing <- 
-    read_csv(here::here("data", "cases_zip.csv")) %>% 
-    clean_names() %>% 
-    mutate(zipcode = as.character(zipcode))
+# cases_zip_existing <- 
+#     read_csv(here::here("data", "cases_zip.csv")) %>% 
+#     clean_names() %>% 
+#     mutate(zipcode = as.character(zipcode))
 
 # Used to add new MDH weekly on Thursdays
 
@@ -163,21 +163,21 @@ cases_zip_existing <-
 
 # https://www.unitedstateszipcodes.org/zip-code-database/
 
-county_zips <- 
-    read_csv(here::here("data", "zip_code_database.csv")) %>% 
-    clean_names() %>% 
-    filter(state == "MN") %>% 
-    select(zip, primary_city, county)
+# county_zips <- 
+#     read_csv(here::here("data", "zip_code_database.csv")) %>% 
+#     clean_names() %>% 
+#     filter(state == "MN") %>% 
+#     select(zip, primary_city, county)
 
 # Join with cases by zip --------------------------------------------------
 
-cases_zip_county <- 
-    left_join(cases_zip_existing, county_zips, by = c("zipcode" = "zip")) %>% 
-    mutate(county = str_remove(county, " County")) %>% 
-    mutate(date = mdy(date)) %>% 
-    filter(cases != "<=5") %>% 
-    mutate(cases = as.numeric(cases)) %>% 
-    distinct()
+# cases_zip_county <- 
+#     left_join(cases_zip_existing, county_zips, by = c("zipcode" = "zip")) %>% 
+#     mutate(county = str_remove(county, " County")) %>% 
+#     mutate(date = mdy(date)) %>% 
+#     filter(cases != "<=5") %>% 
+#     mutate(cases = as.numeric(cases)) %>% 
+#     distinct()
 
 # Create policy tibble ----------------------------------------------------
 
